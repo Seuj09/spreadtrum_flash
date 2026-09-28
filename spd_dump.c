@@ -194,10 +194,18 @@ int main(int argc, char **argv) {
 			return 0;
 #ifdef __ANDROID__
 		}
-		else if (!strcmp(argv[1], "--usb-fd")) { // Termux spec
+		else if (!strcmp(argv[1], "--usb-fd")) { // Termux / Android USB FD
 			if (argc <= 2) ERR_EXIT("bad option\n");
-			xfd = atoi(argv[argc - 1]);
-			argc -= 2; argv += 1;
+			/* Prefer next argv when it is a FD number (spd_dump-usb / -E /
+			 * ProcessBuilder). Fall back to last argv for legacy
+			 * termux-usb -e "./spd_dump --usb-fd" which appends the FD. */
+			if (argv[2][0] >= '0' && argv[2][0] <= '9') {
+				xfd = atoi(argv[2]);
+				argc -= 2; argv += 2;
+			} else {
+				xfd = atoi(argv[argc - 1]);
+				argc -= 2; argv += 1;
+			}
 #endif
 		}
 		else if (!strcmp(argv[1], "--kick")) {
@@ -218,10 +226,26 @@ int main(int argc, char **argv) {
 #ifdef __ANDROID__
 	bListenLibusb = 0;
 	DBG_LOG("Try to convert termux transfered usb port fd.\n");
-	// handle
+	/* Adopt FD from env when --usb-fd was not given (termux-usb -E). */
+	if (xfd < 0) {
+		const char *env = getenv("TERMUX_USB_FD");
+		if ((!env || !env[0]) && (env = getenv("SPD_USB_FD")) && env[0])
+			; /* SPD_USB_FD aliases TERMUX_USB_FD for non-Termux hosts */
+		if (env && env[0]) {
+			char *end = NULL;
+			long v = strtol(env, &end, 10);
+			if (end == env || *end != '\0' || v < 0 || v > 0x7fffffff)
+				ERR_EXIT("bad TERMUX_USB_FD/SPD_USB_FD: %s\n", env);
+			xfd = (int)v;
+			DBG_LOG("Adopted USB FD %d from environment.\n", xfd);
+		}
+	}
 	if (xfd < 0)
-		ERR_EXIT("Example: termux-usb -e \"./spd_dump --usb-fd\" /dev/bus/usb/xxx/xxx\n"
-			"run on android need provide --usb-fd\n");
+		ERR_EXIT("Android/Termux needs a USB file descriptor.\n"
+			"  Prefer:  ./scripts/spd_dump-usb <commands>\n"
+			"  Or:      export TERMUX_USB_FD=N; ./spd_dump <commands>\n"
+			"  Or:      ./spd_dump --usb-fd N <commands>\n"
+			"  Legacy:  termux-usb -e \"./spd_dump --usb-fd\" /dev/bus/usb/N/M\n");
 
 	if (libusb_wrap_sys_device(NULL, (intptr_t)xfd, &io->dev_handle))
 		ERR_EXIT("libusb_wrap_sys_device exit unconditionally!\n");

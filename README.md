@@ -1,4 +1,7 @@
 ## Spreadtrum firmware dumper
+
+**Termux / non-root OTG:** see [TERMUX.md](TERMUX.md) (`scripts/spd_dump-usb`, `--usb-fd` / `TERMUX_USB_FD`). Branch `feature/termux-usb` on the Seuj09 fork.
+
 ### [中文文档](https://github.com/TomKing062/spreadtrum_flash/blob/main/README_zh.md)
 
 work with Official SPRD U2S Diag Driver or LibUSB Driver.
@@ -54,6 +57,10 @@ Then the prompt should display `FDL2>`.
   Connects the device using a custom route `boot_diag -> custom_diag`. Supported modes are 0-127.
 
   (mode 0 = `--kickto 2` on ums9621, mode 1 = cali_diag, mode 2 = dl_diag; not all devices support mode 2).
+
+- `--usb-fd <N>` (Android / Termux only)
+
+  Adopt an already-open usbfs file descriptor. Prefer `./scripts/spd_dump-usb`, which uses `termux-usb -E` (`TERMUX_USB_FD` / `SPD_USB_FD`). See [TERMUX.md](TERMUX.md).
 
 - `-h|--help|help`
 
